@@ -12,6 +12,9 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+# Type alias for floating-point ndarrays
+FloatArray = np.ndarray[Any, np.dtype[np.floating[Any]]]
+
 if TYPE_CHECKING:
     from qr_sampler.config import QRSamplerConfig
 
@@ -41,7 +44,7 @@ class TemperatureStrategy(ABC):
     """
 
     @abstractmethod
-    def compute_temperature(self, logits: np.ndarray, config: QRSamplerConfig) -> TemperatureResult:
+    def compute_temperature(self, logits: FloatArray, config: QRSamplerConfig) -> TemperatureResult:
         """Compute temperature for a single token.
 
         Args:
@@ -53,7 +56,7 @@ class TemperatureStrategy(ABC):
         """
 
 
-def compute_shannon_entropy(logits: np.ndarray) -> float:
+def compute_shannon_entropy(logits: FloatArray) -> float:
     """Compute Shannon entropy H = -sum(p_i * ln(p_i)) using numerically stable softmax.
 
     Uses the shift-by-max trick for numerical stability. Returns 0.0 for

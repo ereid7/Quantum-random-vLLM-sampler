@@ -11,10 +11,15 @@ Semantic interpretation of u:
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from qr_sampler.exceptions import TokenSelectionError
 from qr_sampler.selection.types import SelectionResult
+
+# Type alias for floating-point ndarrays
+FloatArray = np.ndarray[Any, np.dtype[np.floating[Any]]]
 
 
 class TokenSelector:
@@ -26,7 +31,7 @@ class TokenSelector:
 
     def select(
         self,
-        logits: np.ndarray,
+        logits: FloatArray,
         temperature: float,
         top_k: int,
         top_p: float,
@@ -99,7 +104,7 @@ class TokenSelector:
         )
 
     @staticmethod
-    def _apply_top_k(logits: np.ndarray, k: int) -> tuple[np.ndarray, int]:
+    def _apply_top_k(logits: FloatArray, k: int) -> tuple[FloatArray, int]:
         """Keep only the top-k logits, setting the rest to -inf.
 
         Args:
@@ -123,7 +128,7 @@ class TokenSelector:
         return result, k
 
     @staticmethod
-    def _stable_softmax(logits: np.ndarray) -> np.ndarray:
+    def _stable_softmax(logits: FloatArray) -> FloatArray:
         """Numerically stable softmax via shift-by-max.
 
         Args:
@@ -151,11 +156,11 @@ class TokenSelector:
             probs[finite_mask] = 1.0 / max(n, 1)
             return probs
 
-        result: np.ndarray = exp_shifted / total
+        result: FloatArray = exp_shifted / total
         return result
 
     @staticmethod
-    def _apply_top_p(probs: np.ndarray, top_p: float) -> tuple[np.ndarray, int]:
+    def _apply_top_p(probs: FloatArray, top_p: float) -> tuple[FloatArray, int]:
         """Nucleus sampling: keep smallest set of tokens with cumulative prob >= top_p.
 
         Tokens outside the nucleus are zeroed and probabilities are renormalized.
@@ -194,7 +199,7 @@ class TokenSelector:
         return result, num_surviving
 
     @staticmethod
-    def _cdf_select(probs: np.ndarray, u: float) -> tuple[int, int, float, int]:
+    def _cdf_select(probs: FloatArray, u: float) -> tuple[int, int, float, int]:
         """Select a token via CDF binary search.
 
         Sorts tokens by descending probability, builds a CDF, and uses

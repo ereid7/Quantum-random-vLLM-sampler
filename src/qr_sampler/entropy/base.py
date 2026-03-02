@@ -15,6 +15,9 @@ from typing import Any
 
 import numpy as np
 
+# Type alias for floating-point ndarrays
+FloatArray = np.ndarray[Any, np.dtype[np.floating[Any]]]
+
 
 class EntropySource(ABC):
     """Abstract base for all entropy sources.
@@ -51,8 +54,8 @@ class EntropySource(ABC):
     def get_random_float64(
         self,
         shape: tuple[int, ...],
-        out: np.ndarray | None = None,
-    ) -> np.ndarray:
+        out: FloatArray | None = None,
+    ) -> FloatArray:
         """Return random float64 values in [0, 1).
 
         The default implementation converts ``get_random_bytes()`` output to

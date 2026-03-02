@@ -11,6 +11,7 @@ import math
 from typing import TYPE_CHECKING
 
 from qr_sampler.temperature.base import (
+    FloatArray,
     TemperatureResult,
     TemperatureStrategy,
     compute_shannon_entropy,
@@ -18,7 +19,6 @@ from qr_sampler.temperature.base import (
 from qr_sampler.temperature.registry import TemperatureStrategyRegistry
 
 if TYPE_CHECKING:
-    import numpy as np
 
     from qr_sampler.config import QRSamplerConfig
 
@@ -57,7 +57,7 @@ class EDTTemperatureStrategy(TemperatureStrategy):
         self._vocab_size = vocab_size
         self._max_entropy = math.log(vocab_size)  # H_max = ln(V)
 
-    def compute_temperature(self, logits: np.ndarray, config: QRSamplerConfig) -> TemperatureResult:
+    def compute_temperature(self, logits: FloatArray, config: QRSamplerConfig) -> TemperatureResult:
         """Compute dynamic temperature based on logit entropy.
 
         Args:

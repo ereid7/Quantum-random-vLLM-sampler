@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from qr_sampler.temperature.base import (
+    FloatArray,
     TemperatureResult,
     TemperatureStrategy,
     compute_shannon_entropy,
@@ -17,7 +18,6 @@ from qr_sampler.temperature.base import (
 from qr_sampler.temperature.registry import TemperatureStrategyRegistry
 
 if TYPE_CHECKING:
-    import numpy as np
 
     from qr_sampler.config import QRSamplerConfig
 
@@ -30,7 +30,7 @@ class FixedTemperatureStrategy(TemperatureStrategy):
     for logging purposes, even though it does not affect the temperature.
     """
 
-    def compute_temperature(self, logits: np.ndarray, config: QRSamplerConfig) -> TemperatureResult:
+    def compute_temperature(self, logits: FloatArray, config: QRSamplerConfig) -> TemperatureResult:
         """Compute temperature (constant) and Shannon entropy.
 
         Args:

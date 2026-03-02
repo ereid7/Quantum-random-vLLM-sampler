@@ -37,7 +37,7 @@ from qr_sampler.temperature.registry import TemperatureStrategyRegistry
 if TYPE_CHECKING:
     from qr_sampler.amplification.base import SignalAmplifier
     from qr_sampler.entropy.base import EntropySource
-    from qr_sampler.temperature.base import TemperatureStrategy
+    from qr_sampler.temperature.base import FloatArray, TemperatureStrategy
 
 logger = logging.getLogger("qr_sampler")
 
@@ -513,7 +513,7 @@ class QRSamplerLogitsProcessor:
         return logits
 
     @staticmethod
-    def _to_numpy(tensor: Any) -> np.ndarray:
+    def _to_numpy(tensor: Any) -> FloatArray:
         """Convert a tensor to a numpy array with zero-copy where possible.
 
         Args:
@@ -527,7 +527,7 @@ class QRSamplerLogitsProcessor:
         # torch.Tensor — use .numpy() for zero-copy on CPU.
         try:
             if tensor.is_cuda:
-                result: np.ndarray = tensor.detach().cpu().numpy()
+                result: FloatArray = tensor.detach().cpu().numpy()
             else:
                 result = tensor.detach().numpy()
             return result
