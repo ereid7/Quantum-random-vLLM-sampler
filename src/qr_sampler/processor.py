@@ -274,7 +274,7 @@ class QRSamplerLogitsProcessor:
                 device=self._device,
                 dtype=torch.float32,
             )
-        except ModuleNotFoundError:
+        except (ImportError, OSError):
             return np.full(self._vocab_size, float("-inf"), dtype=np.float32)
 
     def _create_cpu_buffer(self) -> Any:
@@ -290,7 +290,7 @@ class QRSamplerLogitsProcessor:
             torch = importlib.import_module("torch")
 
             return torch.empty(self._vocab_size, dtype=torch.float32, pin_memory=True)
-        except ModuleNotFoundError:
+        except (ImportError, OSError):
             return None
 
     def is_argmax_invariant(self) -> bool:
@@ -379,12 +379,15 @@ class QRSamplerLogitsProcessor:
         For each request in the batch:
             1. Resolve per-request config
             2. Convert logit row to numpy
-            3. Compute temperature
-            4. Fetch entropy just-in-time
-            5. Amplify to uniform float
-            6. Select token via CDF
-            7. Force one-hot logits
-            8. Log sampling record
+            3. Optionally apply M1 logit noise (extra entropy fetch)
+            4. Compute temperature
+            5. Optionally apply M2 temp variance (extra entropy fetch)
+            6. Fetch entropy just-in-time
+            7. Amplify to uniform float
+            8. Optionally apply M3 correlated walk (extra entropy fetch)
+            9. Select token via CDF
+            10. Force one-hot logits
+            11. Log sampling record
 
         Args:
             logits: 2-D tensor of shape ``(num_requests, vocab_size)``.
@@ -407,6 +410,7 @@ class QRSamplerLogitsProcessor:
 
         for i in range(num_requests):
             t_start_ns = time.perf_counter_ns()
+            injection_entropy_ms = 0.0
 
             # Get per-request state or fall back to defaults.
             state = self._request_states.get(i)
@@ -429,7 +433,10 @@ class QRSamplerLogitsProcessor:
 
             # --- M1: Logit noise injection (before temperature) ---
             if config.logit_noise_alpha > 0.0:
+                t_m1_start = time.perf_counter_ns()
                 row = LogitNoise.perturb(row, self._entropy_source, config)
+                t_m1_end = time.perf_counter_ns()
+                injection_entropy_ms += (t_m1_end - t_m1_start) / 1_000_000.0
 
             # --- 1. Compute temperature ---
             temp_result = strategy.compute_temperature(row, config)
@@ -437,7 +444,10 @@ class QRSamplerLogitsProcessor:
             # --- M2: Temperature variance injection ---
             temperature = temp_result.temperature
             if config.temp_variance_beta > 0.0:
+                t_m2_start = time.perf_counter_ns()
                 temperature = TempVariance.modulate(temperature, self._entropy_source, config)
+                t_m2_end = time.perf_counter_ns()
+                injection_entropy_ms += (t_m2_end - t_m2_start) / 1_000_000.0
 
             # --- 2. Fetch entropy just-in-time ---
             t_fetch_start = time.perf_counter_ns()
@@ -456,20 +466,25 @@ class QRSamplerLogitsProcessor:
                 )
 
             t_fetch_end = time.perf_counter_ns()
-            entropy_fetch_ms = (t_fetch_end - t_fetch_start) / 1_000_000.0
+            entropy_fetch_ms = (t_fetch_end - t_fetch_start) / 1_000_000.0 + injection_entropy_ms
 
             # --- 3. Amplify to uniform float ---
             amp_result = amplifier.amplify(raw_bytes)
 
             # --- M3: Correlated walk injection ---
             u = amp_result.u
+            m3_active = False
             if config.walk_step > 0.0 and state is not None:
+                m3_active = True
+                t_m3_start = time.perf_counter_ns()
                 u, state.walk_position = CorrelatedWalk.step(
                     u,
                     self._entropy_source,
                     config,
                     state.walk_position,
                 )
+                t_m3_end = time.perf_counter_ns()
+                entropy_fetch_ms += (t_m3_end - t_m3_start) / 1_000_000.0
 
             # --- 4. Select token via CDF ---
             selection = self._selector.select(
@@ -490,14 +505,20 @@ class QRSamplerLogitsProcessor:
             t_end_ns = time.perf_counter_ns()
             total_sampling_ms = (t_end_ns - t_start_ns) / 1_000_000.0
 
+            sample_mean = amp_result.diagnostics.get("sample_mean", 0.0)
+            z_score = amp_result.diagnostics.get("z_score", 0.0)
+            if m3_active:
+                sample_mean = float("nan")
+                z_score = float("nan")
+
             record = TokenSamplingRecord(
                 timestamp_ns=t_start_ns,
                 entropy_fetch_ms=entropy_fetch_ms,
                 total_sampling_ms=total_sampling_ms,
                 entropy_source_used=entropy_source_name,
                 entropy_is_fallback=entropy_is_fallback,
-                sample_mean=amp_result.diagnostics.get("sample_mean", 0.0),
-                z_score=amp_result.diagnostics.get("z_score", 0.0),
+                sample_mean=sample_mean,
+                z_score=z_score,
                 u_value=u,
                 temperature_strategy=config.temperature_strategy,
                 shannon_entropy=temp_result.shannon_entropy,

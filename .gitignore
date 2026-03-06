@@ -52,3 +52,6 @@ node_modules/
 
 # Setuptools SCM
 src/qr_sampler/_version.py
+
+# Sisyphus local planning/evidence artifacts
+.sisyphus/

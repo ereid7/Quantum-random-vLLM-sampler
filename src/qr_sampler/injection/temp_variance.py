@@ -58,6 +58,10 @@ class TempVariance:
             _logger.warning("M2 TempVariance: entropy unavailable, skipping modulation")
             return temperature
 
+        if not raw_bytes:
+            _logger.warning("M2 TempVariance: empty entropy payload, skipping modulation")
+            return temperature
+
         # Z-score \u2192 normal CDF \u2192 uniform value (same math as ZScoreMeanAmplifier)
         samples = np.frombuffer(raw_bytes, dtype=np.uint8)
         n = len(samples)
@@ -65,6 +69,8 @@ class TempVariance:
         sem = config.population_std / math.sqrt(n)
         z_score = (sample_mean - config.population_mean) / sem
         u = 0.5 * (1.0 + math.erf(z_score / _SQRT2))
+        eps = config.uniform_clamp_epsilon
+        u = max(eps, min(1.0 - eps, u))
 
         # Modulate: scale temperature by (1 + beta * (u - 0.5))
         # u in (0,1) \u2192 (u - 0.5) in (-0.5, 0.5) \u2192 modulation in (-beta/2, beta/2)

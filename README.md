@@ -143,6 +143,10 @@ curl http://localhost:8000/v1/completions \
   }'
 ```
 
+Only fields listed in the **Sampling parameters** table are per-request overridable.
+Infrastructure fields (for example `QR_GRPC_SERVER_ADDRESS`, `QR_GRPC_METHOD_PATH`,
+`QR_GRPC_API_KEY`) are process-level settings and cannot be overridden per request.
+
 ---
 
 ## Web UI
@@ -222,8 +226,14 @@ All configuration is done via environment variables with the `QR_` prefix. Per-r
 | `QR_EDT_EXPONENT` | `qr_edt_exponent` | `0.5` | Power-law exponent for EDT |
 | `QR_EDT_MIN_TEMP` | `qr_edt_min_temp` | `0.1` | EDT temperature floor |
 | `QR_EDT_MAX_TEMP` | `qr_edt_max_temp` | `2.0` | EDT temperature ceiling |
-| `QR_TOP_K` | `qr_top_k` | `50` | Top-k filtering (`<=0` disables) |
-| `QR_TOP_P` | `qr_top_p` | `0.9` | Nucleus sampling threshold (`1.0` disables) |
+| `QR_TOP_K` | `qr_top_k` | `0` | Top-k filtering (`<=0` disables) |
+| `QR_TOP_P` | `qr_top_p` | `1.0` | Nucleus sampling threshold (`1.0` disables) |
+| `QR_LOGIT_NOISE_ALPHA` | `qr_logit_noise_alpha` | `0.0` | M1: Logit noise magnitude (`0` disables) |
+| `QR_LOGIT_NOISE_SIGMA` | `qr_logit_noise_sigma` | `1.0` | M1: Gaussian std dev before alpha scaling |
+| `QR_TEMP_VARIANCE_BETA` | `qr_temp_variance_beta` | `0.0` | M2: Temperature modulation magnitude (`0` disables) |
+| `QR_WALK_STEP` | `qr_walk_step` | `0.0` | M3: Correlated walk step size (`0` disables) |
+| `QR_WALK_INITIAL_POSITION` | `qr_walk_initial_position` | `0.5` | M3: Initial walk position in `[0, 1)` |
+| `QR_INJECTION_VERBOSE` | `qr_injection_verbose` | `false` | Log per-token injection diagnostics at debug level |
 | `QR_LOG_LEVEL` | `qr_log_level` | `summary` | Logging: `none`, `summary`, `full` |
 | `QR_DIAGNOSTIC_MODE` | `qr_diagnostic_mode` | `false` | Store all token records in memory |
 

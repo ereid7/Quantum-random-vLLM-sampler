@@ -88,6 +88,18 @@ class TestCorrelatedWalk:
         assert new_u == pytest.approx(0.42)
         assert new_pos == pytest.approx(0.75)
 
+    def test_step_handles_empty_entropy_payload(self) -> None:
+        """When entropy source returns empty bytes, returns unchanged values."""
+        config = QRSamplerConfig(
+            _env_file=None,  # type: ignore[call-arg]
+            walk_step=0.1,
+        )
+        empty_source = MagicMock()
+        empty_source.get_random_bytes.return_value = b""
+        new_u, new_pos = CorrelatedWalk.step(0.42, empty_source, config, 0.75)
+        assert new_u == pytest.approx(0.42)
+        assert new_pos == pytest.approx(0.75)
+
     def test_step_wraps_at_boundary(self) -> None:
         """Position near 1.0 with positive drift should wrap via modulo."""
         config = QRSamplerConfig(

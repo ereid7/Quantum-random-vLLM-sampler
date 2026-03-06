@@ -8,6 +8,7 @@ persistence.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -254,3 +255,20 @@ class TestInjectionIntegration:
 
         # Walk position should have changed from initial 0.5.
         assert proc._request_states[0].walk_position != pytest.approx(0.5)
+
+    def test_m3_record_marks_amplifier_stats_unknown(self) -> None:
+        """When M3 is active, amplifier z-score diagnostics are marked as unknown."""
+        proc = _make_processor(
+            walk_step=0.1,
+            diagnostic_mode=True,
+            log_level="none",
+        )
+        _register_request(proc, req_index=0)
+
+        logits = np.array([_SAMPLE_LOGITS])
+        proc.apply(logits)
+
+        records = proc.sampling_logger.get_diagnostic_data()
+        assert len(records) == 1
+        assert math.isnan(records[0].sample_mean)
+        assert math.isnan(records[0].z_score)

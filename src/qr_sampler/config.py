@@ -144,6 +144,7 @@ class QRSamplerConfig(BaseSettings):
     sample_count: int = Field(
         default=20480,
         description="Number of entropy bytes to fetch per token",
+        gt=0,
     )
     population_mean: float = Field(
         default=127.5,
@@ -201,22 +202,33 @@ class QRSamplerConfig(BaseSettings):
     logit_noise_alpha: float = Field(
         default=0.0,
         description="M1: Gaussian logit noise magnitude. 0 = disabled.",
+        ge=0.0,
+        allow_inf_nan=False,
     )
     logit_noise_sigma: float = Field(
         default=1.0,
         description="M1: Standard deviation of Gaussian noise before scaling by alpha.",
+        ge=0.0,
+        allow_inf_nan=False,
     )
     temp_variance_beta: float = Field(
         default=0.0,
         description="M2: Temperature modulation magnitude. 0 = disabled.",
+        ge=0.0,
+        allow_inf_nan=False,
     )
     walk_step: float = Field(
         default=0.0,
         description="M3: Correlated walk step size. 0 = disabled.",
+        ge=0.0,
+        allow_inf_nan=False,
     )
     walk_initial_position: float = Field(
         default=0.5,
         description="M3: Initial walk position in [0, 1).",
+        ge=0.0,
+        lt=1.0,
+        allow_inf_nan=False,
     )
     injection_verbose: bool = Field(
         default=False,

@@ -61,6 +61,10 @@ class CorrelatedWalk:
             _logger.warning("M3 CorrelatedWalk: entropy unavailable, skipping step")
             return (u, walk_position)
 
+        if not raw_bytes:
+            _logger.warning("M3 CorrelatedWalk: empty entropy payload, skipping step")
+            return (u, walk_position)
+
         # Z-score \u2192 normal CDF \u2192 uniform value (same math as ZScoreMeanAmplifier)
         samples = np.frombuffer(raw_bytes, dtype=np.uint8)
         n = len(samples)
@@ -68,6 +72,8 @@ class CorrelatedWalk:
         sem = config.population_std / math.sqrt(n)
         z_score = (sample_mean - config.population_mean) / sem
         qval = 0.5 * (1.0 + math.erf(z_score / _SQRT2))
+        eps = config.uniform_clamp_epsilon
+        qval = max(eps, min(1.0 - eps, qval))
 
         # Update walk position: drift by step * (qval - 0.5)
         # qval in (0,1) \u2192 (qval - 0.5) in (-0.5, 0.5) \u2192 drift in (-step/2, step/2)

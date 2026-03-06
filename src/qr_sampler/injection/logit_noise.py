@@ -58,6 +58,10 @@ class LogitNoise:
             _logger.warning("M1 LogitNoise: entropy unavailable, skipping perturbation")
             return logits
 
+        if not raw_bytes:
+            _logger.warning("M1 LogitNoise: empty entropy payload, skipping perturbation")
+            return logits
+
         # Z-score \u2192 normal CDF \u2192 uniform value (same math as ZScoreMeanAmplifier)
         samples = np.frombuffer(raw_bytes, dtype=np.uint8)
         n = len(samples)
@@ -65,6 +69,8 @@ class LogitNoise:
         sem = config.population_std / math.sqrt(n)
         z_score = (sample_mean - config.population_mean) / sem
         u = 0.5 * (1.0 + math.erf(z_score / _SQRT2))
+        eps = config.uniform_clamp_epsilon
+        u = max(eps, min(1.0 - eps, u))
 
         # Seed numpy Generator from quantum-derived u value.
         # One seed \u2192 N correlated Gaussian samples (intentional 1:N dilution).

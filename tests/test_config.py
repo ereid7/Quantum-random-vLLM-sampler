@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from qr_sampler.config import (
     _ALL_FIELDS,
@@ -226,6 +227,13 @@ class TestResolveConfig:
         result = resolve_config(default_config, {"qr_diagnostic_mode": "true"})
         assert result.diagnostic_mode is True
 
+    def test_per_request_rejects_invalid_sample_count(
+        self, default_config: QRSamplerConfig
+    ) -> None:
+        """Per-request override should enforce sample_count > 0."""
+        with pytest.raises(ValidationError):
+            resolve_config(default_config, {"qr_sample_count": 0})
+
 
 # ---------------------------------------------------------------------------
 # Non-overridable field rejection
@@ -330,6 +338,45 @@ class TestFieldSets:
     def test_all_fields_populated(self) -> None:
         """_ALL_FIELDS should contain every model field."""
         assert frozenset(QRSamplerConfig.model_fields.keys()) == _ALL_FIELDS
+
+
+# ---------------------------------------------------------------------------
+# Injection constraint validation
+# ---------------------------------------------------------------------------
+
+
+class TestInjectionFieldValidation:
+    """Verify numeric constraints for injection and sample-count fields."""
+
+    @pytest.mark.parametrize("sample_count", [0, -1])
+    def test_sample_count_must_be_positive(self, sample_count: int) -> None:
+        with pytest.raises(ValidationError):
+            QRSamplerConfig(sample_count=sample_count, _env_file=None)  # type: ignore[call-arg]
+
+    @pytest.mark.parametrize("walk_initial_position", [-0.1, 1.0, 1.5])
+    def test_walk_initial_position_out_of_range(self, walk_initial_position: float) -> None:
+        with pytest.raises(ValidationError):
+            QRSamplerConfig(
+                walk_initial_position=walk_initial_position,
+                _env_file=None,  # type: ignore[call-arg]
+            )
+
+    def test_walk_initial_position_disallows_nan(self) -> None:
+        with pytest.raises(ValidationError):
+            QRSamplerConfig(walk_initial_position=float("nan"), _env_file=None)  # type: ignore[call-arg]
+
+    @pytest.mark.parametrize(
+        "field_name, value",
+        [
+            ("logit_noise_alpha", -0.1),
+            ("logit_noise_sigma", -0.1),
+            ("temp_variance_beta", -0.1),
+            ("walk_step", -0.1),
+        ],
+    )
+    def test_injection_fields_are_non_negative(self, field_name: str, value: float) -> None:
+        with pytest.raises(ValidationError):
+            QRSamplerConfig.model_validate({field_name: value})
 
 
 # ---------------------------------------------------------------------------

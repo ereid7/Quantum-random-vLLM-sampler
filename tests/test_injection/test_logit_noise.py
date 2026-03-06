@@ -112,6 +112,21 @@ class TestLogitNoise:
         result = LogitNoise.perturb(logits, failing_source, config)
         np.testing.assert_array_equal(result, original)
 
+    def test_perturb_handles_empty_entropy_payload(
+        self,
+        logits: np.ndarray,
+    ) -> None:
+        """When entropy source returns empty bytes, logits remain unchanged."""
+        config = QRSamplerConfig(
+            _env_file=None,  # type: ignore[call-arg]
+            logit_noise_alpha=0.05,
+        )
+        empty_source = MagicMock()
+        empty_source.get_random_bytes.return_value = b""
+        original = logits.copy()
+        result = LogitNoise.perturb(logits, empty_source, config)
+        np.testing.assert_array_equal(result, original)
+
     def test_perturb_preserves_shape(
         self,
         source: MockUniformSource,

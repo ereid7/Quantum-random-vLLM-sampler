@@ -92,6 +92,17 @@ class TestTempVariance:
         result = TempVariance.modulate(0.7, failing_source, config)
         assert result == pytest.approx(0.7)
 
+    def test_modulate_handles_empty_entropy_payload(self) -> None:
+        """When entropy source returns empty bytes, temperature is unchanged."""
+        config = QRSamplerConfig(
+            _env_file=None,  # type: ignore[call-arg]
+            temp_variance_beta=0.3,
+        )
+        empty_source = MagicMock()
+        empty_source.get_random_bytes.return_value = b""
+        result = TempVariance.modulate(0.7, empty_source, config)
+        assert result == pytest.approx(0.7)
+
     def test_modulate_reproducible_with_same_seed(self) -> None:
         """Two calls with identically-seeded sources produce the same result."""
         config = QRSamplerConfig(
