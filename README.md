@@ -147,6 +147,115 @@ Only fields listed in the **Sampling parameters** table are per-request overrida
 Infrastructure fields (for example `QR_GRPC_SERVER_ADDRESS`, `QR_GRPC_METHOD_PATH`,
 `QR_GRPC_API_KEY`) are process-level settings and cannot be overridden per request.
 
+### Running with different injection methods
+
+Injection methods are disabled by default. Enable them by setting non-zero values
+in `extra_args` (per request) or via `QR_*` environment variables (process-wide).
+
+Recommended workflow:
+1. Start with baseline (all injection values = `0`).
+2. Enable one method at a time.
+3. Compare outputs and diagnostics before combining methods.
+
+Set helper variables for `curl` examples:
+
+```bash
+export VLLM_URL=http://localhost:8000/v1/completions
+export MODEL=Qwen/Qwen2.5-1.5B-Instruct
+```
+
+Baseline (no injection):
+
+```bash
+curl "$VLLM_URL" -H "Content-Type: application/json" -d '{
+  "model": "'"$MODEL"'",
+  "prompt": "The nature of consciousness is",
+  "max_tokens": 100,
+  "extra_args": {
+    "qr_logit_noise_alpha": 0.0,
+    "qr_temp_variance_beta": 0.0,
+    "qr_walk_step": 0.0
+  }
+}'
+```
+
+Logit Perturbation (`qr_logit_noise_alpha`, optional `qr_logit_noise_sigma`):
+
+```bash
+curl "$VLLM_URL" -H "Content-Type: application/json" -d '{
+  "model": "'"$MODEL"'",
+  "prompt": "The nature of consciousness is",
+  "max_tokens": 100,
+  "extra_args": {
+    "qr_logit_noise_alpha": 0.20,
+    "qr_logit_noise_sigma": 1.0
+  }
+}'
+```
+
+Temperature Variance (`qr_temp_variance_beta`):
+
+```bash
+curl "$VLLM_URL" -H "Content-Type: application/json" -d '{
+  "model": "'"$MODEL"'",
+  "prompt": "The nature of consciousness is",
+  "max_tokens": 100,
+  "extra_args": {
+    "qr_temp_variance_beta": 0.25
+  }
+}'
+```
+
+Correlated Walk (`qr_walk_step`, optional `qr_walk_initial_position`):
+
+```bash
+curl "$VLLM_URL" -H "Content-Type: application/json" -d '{
+  "model": "'"$MODEL"'",
+  "prompt": "The nature of consciousness is",
+  "max_tokens": 100,
+  "extra_args": {
+    "qr_walk_step": 0.08,
+    "qr_walk_initial_position": 0.5
+  }
+}'
+```
+
+Combined methods:
+
+```bash
+curl "$VLLM_URL" -H "Content-Type: application/json" -d '{
+  "model": "'"$MODEL"'",
+  "prompt": "The nature of consciousness is",
+  "max_tokens": 100,
+  "extra_args": {
+    "qr_logit_noise_alpha": 0.20,
+    "qr_logit_noise_sigma": 1.0,
+    "qr_temp_variance_beta": 0.25,
+    "qr_walk_step": 0.08,
+    "qr_walk_initial_position": 0.5
+  }
+}'
+```
+
+To set methods process-wide (instead of per request):
+
+```bash
+export QR_LOGIT_NOISE_ALPHA=0.20
+export QR_LOGIT_NOISE_SIGMA=1.0
+export QR_TEMP_VARIANCE_BETA=0.25
+export QR_WALK_STEP=0.08
+export QR_WALK_INITIAL_POSITION=0.5
+```
+
+Enable injection diagnostics:
+
+```bash
+export QR_INJECTION_VERBOSE=true
+export QR_LOG_LEVEL=full
+```
+
+To disable an injection method again, set its control value back to `0.0`.
+
 ---
 
 ## Web UI
